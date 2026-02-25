@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+exports/
+scraper.log
+sample_data_report.json
+.DS_Store
