@@ -41,6 +41,10 @@ def parse_args():
         help="Scrape once, export, and exit (no dashboard)",
     )
     parser.add_argument(
+        "--export-excel", action="store_true",
+        help="Export data to Excel (.xlsx) with full market details",
+    )
+    parser.add_argument(
         "--category", type=str, default=None,
         help="Filter by category (e.g., Politics, Crypto)",
     )
@@ -65,17 +69,21 @@ def main():
     dashboard = Dashboard()
     exporter = Exporter()
 
-    # --export-once mode: scrape, export, exit
-    if args.export_once:
+    # --export-once / --export-excel mode: scrape, export, exit
+    if args.export_once or args.export_excel:
         snapshot = scrape_cycle(client)
-        csv_path = exporter.export_csv(snapshot)
-        json_path = exporter.export_json(snapshot)
         print(f"\nScraped {snapshot.total_events} events, "
               f"{snapshot.total_markets} markets")
         print(f"Total Volume: ${snapshot.total_volume:,.2f}")
         print(f"\nExported to:")
-        print(f"  CSV:  {csv_path}")
-        print(f"  JSON: {json_path}")
+        if args.export_once:
+            csv_path = exporter.export_csv(snapshot)
+            json_path = exporter.export_json(snapshot)
+            print(f"  CSV:  {csv_path}")
+            print(f"  JSON: {json_path}")
+        if args.export_excel or args.export_once:
+            xlsx_path = exporter.export_excel(snapshot)
+            print(f"  Excel: {xlsx_path}")
         return
 
     # Live dashboard mode
@@ -108,6 +116,10 @@ def main():
                     csv_path = exporter.export_csv(snapshot)
                     json_path = exporter.export_json(snapshot)
                     logger.info("Exported: %s, %s", csv_path, json_path)
+
+                if args.export_excel:
+                    xlsx_path = exporter.export_excel(snapshot)
+                    logger.info("Exported Excel: %s", xlsx_path)
 
                 # Wait with 1-second granularity for responsive shutdown
                 for _ in range(args.interval):

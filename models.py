@@ -23,6 +23,13 @@ class Market:
     closed: bool
     end_date: Optional[str]
     polymarket_url: str
+    description: str = ""
+    resolved_by: Optional[str] = None
+    oracle_type: str = "Unknown"
+    oracle_link: str = ""
+    uma_bond: Optional[float] = None
+    uma_reward: Optional[float] = None
+    created_at: Optional[str] = None
 
 
 @dataclass
@@ -41,6 +48,8 @@ class Event:
     category: str
     start_date: Optional[str]
     end_date: Optional[str]
+    description: str = ""
+    created_at: Optional[str] = None
 
 
 @dataclass

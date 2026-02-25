@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from typing import List, Dict
 
@@ -57,6 +58,31 @@ class DataProcessor:
         elif event_slug:
             url = f"{POLYMARKET_BASE_URL}/{event_slug}"
 
+        resolved_by = raw.get("resolvedBy") or ""
+        uma_bond = None
+        uma_reward = None
+        try:
+            if raw.get("umaBond") is not None:
+                uma_bond = float(raw["umaBond"])
+        except (ValueError, TypeError):
+            pass
+        try:
+            if raw.get("umaReward") is not None:
+                uma_reward = float(raw["umaReward"])
+        except (ValueError, TypeError):
+            pass
+
+        oracle_type = "UMA" if uma_bond is not None else "Unknown"
+        oracle_link = (f"https://polygonscan.com/address/{resolved_by}"
+                       if resolved_by else "")
+
+        if oracle_type == "Unknown":
+            desc = raw.get("description", "")
+            cl_match = re.search(r'https?://data\.chain\.link/[^\s,)"]+', desc)
+            if cl_match:
+                oracle_type = "Chainlink"
+                oracle_link = cl_match.group(0).rstrip(".")
+
         return Market(
             id=raw.get("id", ""),
             question=raw.get("question", ""),
@@ -70,6 +96,13 @@ class DataProcessor:
             closed=raw.get("closed", False),
             end_date=raw.get("endDate"),
             polymarket_url=url,
+            description=raw.get("description", ""),
+            resolved_by=resolved_by or None,
+            oracle_type=oracle_type,
+            oracle_link=oracle_link,
+            uma_bond=uma_bond,
+            uma_reward=uma_reward,
+            created_at=raw.get("createdAt"),
         )
 
     @staticmethod
@@ -91,23 +124,9 @@ class DataProcessor:
 
         category = DataProcessor.determine_category(tags)
 
-        volume = 0.0
-        try:
-            volume = float(raw.get("volumeNum") or raw.get("volume") or 0)
-        except (ValueError, TypeError):
-            pass
-
-        volume_24hr = 0.0
-        try:
-            volume_24hr = float(raw.get("volume24hr", 0) or 0)
-        except (ValueError, TypeError):
-            pass
-
-        liquidity = 0.0
-        try:
-            liquidity = float(raw.get("liquidity", 0) or 0)
-        except (ValueError, TypeError):
-            pass
+        volume = sum(m.volume for m in markets) if markets else 0.0
+        volume_24hr = sum(m.volume_24hr for m in markets) if markets else 0.0
+        liquidity = sum(m.liquidity for m in markets) if markets else 0.0
 
         return Event(
             id=str(raw.get("id", "")),
@@ -124,6 +143,8 @@ class DataProcessor:
             category=category,
             start_date=raw.get("startDate"),
             end_date=raw.get("endDate"),
+            description=raw.get("description", ""),
+            created_at=raw.get("createdAt"),
         )
 
     @staticmethod
@@ -145,7 +166,13 @@ class DataProcessor:
     @staticmethod
     def build_snapshot(raw_events: List[dict],
                        fetch_duration: float) -> ScraperSnapshot:
-        events = [DataProcessor.parse_event(raw) for raw in raw_events]
+        all_events = [DataProcessor.parse_event(raw) for raw in raw_events]
+        seen_ids: set = set()
+        events: List[Event] = []
+        for e in all_events:
+            if e.id not in seen_ids:
+                seen_ids.add(e.id)
+                events.append(e)
         total_markets = sum(len(e.markets) for e in events)
         total_volume = sum(e.volume for e in events)
         categories = DataProcessor.categorize_events(events)

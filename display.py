@@ -94,14 +94,16 @@ class Dashboard:
             title_style="bold cyan",
         )
         table.add_column("#", style="dim", width=4, justify="right")
-        table.add_column("Title", style="white", max_width=40, no_wrap=True)
-        table.add_column("Category", style="magenta", width=14)
-        table.add_column("Markets", justify="center", width=8)
-        table.add_column("Volume", justify="right", style="green", width=14)
-        table.add_column("24h Vol", justify="right", style="yellow", width=12)
-        table.add_column("Top Outcome", width=18)
-        table.add_column("Price", justify="right", width=8)
-        table.add_column("Link", style="blue", max_width=40, no_wrap=True)
+        table.add_column("Title", style="white", max_width=38, no_wrap=True)
+        table.add_column("Category", style="magenta", width=12)
+        table.add_column("Markets", justify="center", width=7)
+        table.add_column("Volume", justify="right", style="green", width=12)
+        table.add_column("24h Vol", justify="right", style="yellow", width=10)
+        table.add_column("Top Outcome", width=16)
+        table.add_column("Price", justify="right", width=7)
+        table.add_column("Created", style="dim", width=10)
+        table.add_column("Oracle", style="bright_cyan", width=6)
+        table.add_column("Link", style="blue", max_width=35, no_wrap=True)
 
         events = snapshot.events
         if category_filter:
@@ -127,18 +129,31 @@ class Dashboard:
             color = CATEGORY_COLORS.get(event.category, "white")
             short_url = event.polymarket_url.replace(
                 "https://polymarket.com/event/", "")
-            if len(short_url) > 38:
-                short_url = short_url[:35] + "..."
+            if len(short_url) > 33:
+                short_url = short_url[:30] + "..."
+
+            created = ""
+            if event.created_at:
+                try:
+                    created = event.created_at[:10]
+                except (IndexError, TypeError):
+                    pass
+
+            top_market = max(event.markets, key=lambda m: m.volume,
+                             default=None)
+            oracle = top_market.oracle_type if top_market else ""
 
             table.add_row(
                 str(idx),
-                event.title[:40],
+                event.title[:38],
                 Text(event.category, style=color),
                 str(len(event.markets)),
                 format_volume(event.volume),
                 format_volume(event.volume_24hr),
                 top_outcome,
                 top_price,
+                created,
+                oracle,
                 short_url,
             )
 
